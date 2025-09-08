@@ -1,0 +1,7 @@
+vraag_id;type;vraag;antwoord_a;antwoord_b;antwoord_c;juiste_antwoord
+Q001;multiple_choice;Wat is de hoofdstad van Nederland?;Amsterdam;Rotterdam;Den Haag;a
+Q002;open_question;Wat is de hoofdstad van Frankrijk?;;;Parijs
+Q003;open_question;Hoeveel benen heeft een spin?;;;8
+Q004;multiple_choice;Hoeveel provincies heeft Nederland?;10;11;12;c
+Q005;open_question;Wat is de kleur van de zon?;;;geel
+Q006;open_question;In welk jaar begon de Tweede Wereldoorlog?;;;1939

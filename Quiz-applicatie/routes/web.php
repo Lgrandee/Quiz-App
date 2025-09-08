@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\QuizController;
+use App\Http\Controllers\QuizAttemptController;
 use App\Http\Controllers\QuestionController;
 
 /*
@@ -15,20 +17,48 @@ use App\Http\Controllers\QuestionController;
 */
 
 Route::get('/', function () {
-    return view('home');
+    return view('welcome');
 })->name('home');
 
-Route::get('layouts.app', function () {
-    return view('layouts.app');
-})->name('layouts.app');
+Auth::routes();
 
-Route::get('/questions/all', [QuestionController::class, 'allQuestions'])->name('questions.allquestions');
+Route::middleware('auth')->group(function () {
+    // Dashboard
+    Route::get('/dashboard', function () {
+        if (auth()->user()->isTeacher()) {
+            return redirect()->route('quizzes.index');
+        }
+        return redirect()->route('student.dashboard');
+    })->name('dashboard');
 
-// Question routes
-Route::get('/questions', [QuestionController::class, 'index'])->name('questions.index');
-Route::get('/questions/upload', [QuestionController::class, 'create'])->name('questions.create');
-Route::post('/questions/upload', [QuestionController::class, 'store'])->name('questions.store');
+    Route::get('/student/dashboard', function () {
+        $quizzes = \App\Models\Quiz::where('is_active', true)->get();
+        $recentAttempts = auth()->user()->quizAttempts()->with('quiz')->latest()->take(5)->get();
+        return view('student.dashboard', compact('quizzes', 'recentAttempts'));
+    })->name('student.dashboard');
 
-// Quiz routes
-Route::get('/quiz', [QuestionController::class, 'showQuiz'])->name('quiz.show');
-Route::post('/quiz/submit', [QuestionController::class, 'submitQuiz'])->name('quiz.submit');
+    // Question management routes - specific routes first
+    Route::get('questions/upload-open', [QuestionController::class, 'createOpen'])->name('questions.create-open');
+    Route::post('questions/store-open', [QuestionController::class, 'storeOpen'])->name('questions.store-open');
+    Route::resource('questions', QuestionController::class);
+    Route::get('quiz/{quiz?}', [QuestionController::class, 'showQuiz'])->name('quiz.show');
+    Route::get('quiz/{quiz}/question/{questionNumber}', [QuestionController::class, 'showQuestion'])->name('quiz.question');
+    Route::post('quiz/save-answer', [QuestionController::class, 'saveAnswer'])->name('quiz.save-answer');
+    Route::post('quiz/submit', [QuestionController::class, 'submitQuiz'])->name('quiz.submit');
+
+    // Quiz management routes
+    Route::resource('quizzes', QuizController::class);
+    Route::get('quizzes/{quiz}/upload', [QuizController::class, 'uploadForm'])->name('quizzes.upload.form');
+    Route::post('quizzes/{quiz}/upload', [QuizController::class, 'uploadQuestions'])->name('quizzes.upload');
+
+    // Quiz attempt routes
+    Route::get('quiz-attempts', [QuizAttemptController::class, 'index'])->name('quiz-attempts.index');
+    Route::post('quizzes/{quiz}/start', [QuizAttemptController::class, 'start'])->name('quiz-attempts.start');
+    Route::get('quiz-attempts/{attempt}/take', [QuizAttemptController::class, 'take'])->name('quiz-attempts.take');
+    Route::post('quiz-attempts/{attempt}/submit', [QuizAttemptController::class, 'submit'])->name('quiz-attempts.submit');
+    Route::get('quiz-attempts/{attempt}/results', [QuizAttemptController::class, 'results'])->name('quiz-attempts.results');
+});
+
+Auth::routes();
+
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
