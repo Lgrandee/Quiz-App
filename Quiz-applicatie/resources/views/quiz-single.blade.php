@@ -237,46 +237,62 @@ function updateCharacterCount(textarea) {
 function validateOpenAnswer(textarea) {
     const correctAnswer = '{{ $question->correct_answer ?? "" }}';
     const userAnswer = textarea.value.trim();
+    provideOpenQuestionFeedback(userAnswer, correctAnswer, textarea);
+}
+
+function provideOpenQuestionFeedback(userAnswer, correctAnswer, textarea) {
     const feedbackContainer = document.getElementById('answerFeedback');
     
     if (!feedbackContainer || !correctAnswer || !userAnswer) {
         return;
     }
     
-    // Case-insensitive comparison, ignoring spaces
-    const normalizedCorrect = correctAnswer.toLowerCase().replace(/\s+/g, '');
-    const normalizedUser = userAnswer.toLowerCase().replace(/\s+/g, '');
-    
-    if (normalizedUser === normalizedCorrect) {
-        feedbackContainer.innerHTML = `
-            <span class="badge bg-success">
-                <i class="fas fa-check"></i> Correct!
-            </span>
-        `;
-        textarea.classList.remove('is-invalid');
-        textarea.classList.add('is-valid');
-    } else if (normalizedUser.length > 0) {
-        // Show partial feedback for non-empty answers
-        const similarity = calculateSimilarity(normalizedCorrect, normalizedUser);
-        if (similarity > 0.7) {
+    // Performance optimization: Use requestAnimationFrame for smooth UI updates
+    requestAnimationFrame(() => {
+        const startTime = performance.now();
+        
+        // Case-insensitive comparison, ignoring spaces
+        const normalizedCorrect = correctAnswer.toLowerCase().replace(/\s+/g, '');
+        const normalizedUser = userAnswer.toLowerCase().replace(/\s+/g, '');
+        
+        if (normalizedUser === normalizedCorrect) {
             feedbackContainer.innerHTML = `
-                <span class="badge bg-warning">
-                    <i class="fas fa-exclamation-triangle"></i> Bijna goed
+                <span class="badge bg-success">
+                    <i class="fas fa-check"></i> Correct!
                 </span>
             `;
+            textarea.classList.remove('is-invalid');
+            textarea.classList.add('is-valid');
+        } else if (normalizedUser.length > 0) {
+            // Show partial feedback for non-empty answers
+            const similarity = calculateSimilarity(normalizedCorrect, normalizedUser);
+            if (similarity > 0.7) {
+                feedbackContainer.innerHTML = `
+                    <span class="badge bg-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Bijna goed
+                    </span>
+                `;
+            } else {
+                feedbackContainer.innerHTML = `
+                    <span class="badge bg-danger">
+                        <i class="fas fa-times"></i> Probeer opnieuw
+                    </span>
+                `;
+            }
+            textarea.classList.remove('is-valid');
+            textarea.classList.add('is-invalid');
         } else {
-            feedbackContainer.innerHTML = `
-                <span class="badge bg-danger">
-                    <i class="fas fa-times"></i> Probeer opnieuw
-                </span>
-            `;
+            feedbackContainer.innerHTML = '';
+            textarea.classList.remove('is-valid', 'is-invalid');
         }
-        textarea.classList.remove('is-valid');
-        textarea.classList.add('is-invalid');
-    } else {
-        feedbackContainer.innerHTML = '';
-        textarea.classList.remove('is-valid', 'is-invalid');
-    }
+        
+        // Log feedback timing for performance monitoring
+        const endTime = performance.now();
+        const feedbackTime = endTime - startTime;
+        if (feedbackTime > 100) { // Log if feedback takes more than 100ms
+            console.warn(`Feedback took ${feedbackTime.toFixed(2)}ms - consider optimization`);
+        }
+    });
 }
 
 function calculateSimilarity(str1, str2) {
@@ -345,10 +361,163 @@ function pauseQuiz() {
 
 function finishQuiz() {
     saveAnswer();
-    if (confirm('Weet je zeker dat je de quiz wilt voltooien?')) {
+    
+    // Check if all questions are answered
+    const totalQuestions = {{ $totalQuestions }};
+    const answeredQuestions = Object.keys(getSessionAnswers()).length;
+    
+    if (answeredQuestions < totalQuestions) {
+        const unansweredCount = totalQuestions - answeredQuestions;
+        showIncompleteWarning(unansweredCount, totalQuestions);
+        return;
+    }
+    
+    // Enhanced confirmation dialog
+    const confirmMessage = `🎯 Quiz Voltooien\n\n` +
+                          `✅ Alle ${totalQuestions} vragen zijn beantwoord\n` +
+                          `⚠️  Na indienen zijn geen wijzigingen meer mogelijk\n\n` +
+                          `Weet je zeker dat je de quiz definitief wilt indienen?`;
+    
+    if (confirm(confirmMessage)) {
+        // Prevent any further changes
+        disableAllInputs();
+        
+        // Show loading state
+        const finishBtn = document.getElementById('finishBtn');
+        if (finishBtn) {
+            finishBtn.disabled = true;
+            finishBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Indienen...';
+        }
+        
+        // Add submission timestamp
+        const timestampInput = document.createElement('input');
+        timestampInput.type = 'hidden';
+        timestampInput.name = 'submission_timestamp';
+        timestampInput.value = new Date().toISOString();
+        document.getElementById('questionForm').appendChild(timestampInput);
+        
         document.getElementById('questionForm').action = '{{ route("quiz.submit") }}';
         document.getElementById('questionForm').submit();
     }
+}
+
+function showIncompleteWarning(unansweredCount, totalQuestions) {
+    const warningMessage = `⚠️ Quiz Niet Compleet\n\n` +
+                          `Je hebt nog ${unansweredCount} van de ${totalQuestions} vragen niet beantwoord.\n\n` +
+                          `Ga terug naar de onbeantwoorde vragen om je quiz te voltooien.`;
+    
+    alert(warningMessage);
+    
+    // Highlight unanswered questions
+    highlightUnansweredQuestions();
+}
+
+function highlightUnansweredQuestions() {
+    const sessionAnswers = getSessionAnswers();
+    const indicators = document.querySelectorAll('.question-indicator');
+    
+    indicators.forEach((indicator, index) => {
+        const questionNumber = index + 1;
+        const questionId = getQuestionIdByNumber(questionNumber);
+        
+        if (!sessionAnswers[questionId]) {
+            indicator.classList.add('unanswered-warning');
+            indicator.title = 'Deze vraag is nog niet beantwoord';
+        }
+    });
+    
+    // Remove highlights after 5 seconds
+    setTimeout(() => {
+        indicators.forEach(indicator => {
+            indicator.classList.remove('unanswered-warning');
+        });
+    }, 5000);
+}
+
+function getSessionAnswers() {
+    // Get answers from session storage or current page state
+    const answers = {};
+    @foreach($quiz->questions as $question)
+        @if(isset($answers[$question->id]))
+            answers[{{ $question->id }}] = '{{ $answers[$question->id] }}';
+        @endif
+    @endforeach
+    return answers;
+}
+
+function getQuestionIdByNumber(questionNumber) {
+    const questions = [
+        @foreach($quiz->questions as $question)
+            {{ $question->id }},
+        @endforeach
+    ];
+    return questions[questionNumber - 1];
+}
+
+function disableAllInputs() {
+    // Disable all form inputs to prevent changes after submission
+    const allInputs = document.querySelectorAll('input, textarea, button, select');
+    allInputs.forEach(input => {
+        if (input.type !== 'hidden') {
+            input.disabled = true;
+            input.style.opacity = '0.6';
+            input.style.pointerEvents = 'none';
+        }
+    });
+    
+    // Add visual indication that quiz is submitted
+    const container = document.querySelector('.container');
+    if (container) {
+        container.classList.add('submit-loading');
+    }
+    
+    // Show submission overlay
+    showSubmissionOverlay();
+}
+
+function showSubmissionOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'submissionOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        backdrop-filter: blur(2px);
+    `;
+    
+    overlay.innerHTML = `
+        <div style="
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 400px;
+            margin: 1rem;
+        ">
+            <div style="font-size: 3rem; color: #28a745; margin-bottom: 1rem;">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h4 style="color: #333; margin-bottom: 1rem;">Quiz Ingediend!</h4>
+            <p style="color: #666; margin-bottom: 1.5rem;">
+                Je antwoorden worden verwerkt...<br>
+                <small>Je wordt automatisch doorgestuurd naar de resultaten.</small>
+            </p>
+            <div style="display: flex; align-items: center; justify-content: center; color: #007bff;">
+                <i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i>
+                Verwerken...
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
 }
 
 // Auto-select previously selected option on page load
@@ -431,21 +600,21 @@ document.addEventListener('keydown', function(e) {
     padding: 4px 8px;
 }
 
-.option-letter {
-    background: #f8f9fa;
-    border-radius: 50%;
-    width: 35px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: #495057;
+.unanswered-warning {
+    animation: pulse-warning 1s infinite;
+    border: 2px solid #dc3545 !important;
+    background-color: #fff5f5 !important;
 }
 
-.option-card.selected .option-letter {
-    background: #007bff;
-    color: white;
+@keyframes pulse-warning {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+.submit-loading {
+    opacity: 0.7;
+    pointer-events: none;
 }
 
 .question-indicator {

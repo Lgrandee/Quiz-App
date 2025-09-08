@@ -54,10 +54,72 @@
         @endforeach
     </div>
 
-    <!-- Pagination -->
-    <div class="d-flex justify-content-center">
-        {{ $questions->links() }}
-    </div>
+    <!-- Beautiful Custom Pagination -->
+    @if($questions->hasPages())
+        <div class="pagination-wrapper mt-5">
+            <div class="pagination-info text-center mb-3">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Showing {{ $questions->firstItem() }} to {{ $questions->lastItem() }} of {{ $questions->total() }} questions
+                </span>
+            </div>
+            
+            <nav aria-label="Questions pagination" class="d-flex justify-content-center">
+                <ul class="pagination pagination-lg custom-pagination">
+                    {{-- Previous Page Link --}}
+                    @if ($questions->onFirstPage())
+                        <li class="page-item disabled">
+                            <span class="page-link">
+                                <i class="fas fa-chevron-left"></i>
+                                <span class="d-none d-sm-inline ms-1">Previous</span>
+                            </span>
+                        </li>
+                    @else
+                        <li class="page-item">
+                            <a class="page-link" href="{{ $questions->previousPageUrl() }}" rel="prev">
+                                <i class="fas fa-chevron-left"></i>
+                                <span class="d-none d-sm-inline ms-1">Previous</span>
+                            </a>
+                        </li>
+                    @endif
+
+                    {{-- Pagination Elements --}}
+                    @foreach ($questions->getUrlRange(1, $questions->lastPage()) as $page => $url)
+                        @if ($page == $questions->currentPage())
+                            <li class="page-item active">
+                                <span class="page-link current-page">
+                                    {{ $page }}
+                                    <span class="sr-only">(current)</span>
+                                </span>
+                            </li>
+                        @else
+                            <li class="page-item">
+                                <a class="page-link" href="{{ $url }}">{{ $page }}</a>
+                            </li>
+                        @endif
+                    @endforeach
+
+                    {{-- Next Page Link --}}
+                    @if ($questions->hasMorePages())
+                        <li class="page-item">
+                            <a class="page-link" href="{{ $questions->nextPageUrl() }}" rel="next">
+                                <span class="d-none d-sm-inline me-1">Next</span>
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    @else
+                        <li class="page-item disabled">
+                            <span class="page-link">
+                                <span class="d-none d-sm-inline me-1">Next</span>
+                                <i class="fas fa-chevron-right"></i>
+                            </span>
+                        </li>
+                    @endif
+                </ul>
+            </nav>
+        </div>
+    @endif
+
 @else
     <div class="text-center py-5">
         <div class="mb-4">

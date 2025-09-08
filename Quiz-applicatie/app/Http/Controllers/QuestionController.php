@@ -58,7 +58,7 @@ class QuestionController extends Controller
      */
     public function index()
     {
-        $questions = Question::with('quiz')->latest()->paginate(10);
+        $questions = Question::with('quiz')->latest()->paginate(8);
         return view('questions.index', compact('questions'));
     }
 
