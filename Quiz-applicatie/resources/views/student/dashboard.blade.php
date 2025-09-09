@@ -98,17 +98,17 @@
                                         </div>
                                         <div class="card-footer bg-transparent">
                                             @if($isInProgress)
-                                                <a href="{{ route('quiz.show', $quiz->id) }}" class="btn btn-warning btn-sm w-100">
+                                                <a href="{{ route('student.quiz.show', $quiz->id) }}" class="btn btn-warning btn-sm w-100">
                                                     <i class="fas fa-play"></i> Quiz Hervatten
                                                 </a>
                                             @elseif($isCompleted)
                                                 <div class="d-grid gap-2">
-                                                    <a href="{{ route('quiz.show', $quiz->id) }}" class="btn btn-success btn-sm">
+                                                    <a href="{{ route('student.quiz.show', $quiz->id) }}" class="btn btn-success btn-sm">
                                                         <i class="fas fa-redo"></i> Opnieuw Maken
                                                     </a>
                                                 </div>
                                             @else
-                                                <a href="{{ route('quiz.show', $quiz->id) }}" class="btn btn-primary btn-sm w-100">
+                                                <a href="{{ route('student.quiz.show', $quiz->id) }}" class="btn btn-primary btn-sm w-100">
                                                     <i class="fas fa-play"></i> Quiz Starten
                                                 </a>
                                             @endif
@@ -200,7 +200,7 @@
                             </div>
                         @endforeach
                         <div class="text-center">
-                            <a href="{{ route('quiz-attempts.index') }}" class="btn btn-outline-secondary btn-sm">
+                            <a href="{{ route('student.quiz-attempts.index') }}" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-list"></i> Alle Pogingen Bekijken
                             </a>
                         </div>

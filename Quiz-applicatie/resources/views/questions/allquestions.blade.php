@@ -9,7 +9,7 @@
 		Answer All Questions (Multiple Choice)
 	</div>
 	<div class="card-body">
-		<form action="{{ route('quiz.submit') }}" method="POST">
+		<form action="{{ route('student.quiz.submit') }}" method="POST">
 			@csrf
 			@foreach($questions as $question)
 				<div class="mb-3">

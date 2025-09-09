@@ -22,7 +22,7 @@
                     @endif
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('quiz.submit') }}" method="POST" id="quizForm">
+                    <form action="{{ route('student.quiz.submit') }}" method="POST" id="quizForm">
                         @csrf
                         <input type="hidden" name="quiz_id" value="{{ $quiz->id }}">
                         

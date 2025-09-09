@@ -4,10 +4,35 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">{{ __('Login') }}</div>
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Inloggen</h4>
+                </div>
 
                 <div class="card-body">
+                    @if(session('error'))
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}
+                        </div>
+                    @endif
+
+                    <!-- Demo Credentials -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Demo Inloggegevens:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Docenten:</strong><br>
+                                <code>docent@quiz.nl</code> / <code>docent123</code><br>
+                                <code>maria@quiz.nl</code> / <code>docent123</code>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Studenten:</strong><br>
+                                <code>student@quiz.nl</code> / <code>student123</code><br>
+                                <code>lisa@quiz.nl</code> / <code>student123</code>
+                            </div>
+                        </div>
+                    </div>
+
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
 
@@ -53,8 +78,8 @@
 
                         <div class="row mb-0">
                             <div class="col-md-8 offset-md-4">
-                                <button type="submit" class="btn btn-primary">
-                                    {{ __('Login') }}
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Inloggen
                                 </button>
 
                                 @if (Route::has('password.request'))

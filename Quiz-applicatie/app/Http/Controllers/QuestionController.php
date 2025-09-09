@@ -49,9 +49,20 @@ class QuestionController extends Controller
         $percentage = $totalPoints > 0 ? round(($score / $totalPoints) * 100, 1) : 0;
         
         // Clear session answers
-        session()->forget('quiz_answers_' . $quizId);
+        // Calculate quiz duration
+        $startTime = session('quiz_start_time_' . $quizId);
+        $quizDuration = null;
+        if ($startTime) {
+            $duration = now()->diffInSeconds($startTime);
+            $minutes = floor($duration / 60);
+            $seconds = $duration % 60;
+            $quizDuration = $minutes > 0 ? "{$minutes}m {$seconds}s" : "{$seconds}s";
+        }
         
-        return view('quiz_result', compact('quiz', 'score', 'totalPoints', 'percentage', 'results'));
+        session()->forget('quiz_answers_' . $quizId);
+        session()->forget('quiz_start_time_' . $quizId);
+        
+        return view('quiz_result', compact('quiz', 'score', 'totalPoints', 'percentage', 'results', 'quizDuration'));
     }
     /**
      * Show the form for uploading CSV
@@ -59,7 +70,7 @@ class QuestionController extends Controller
     public function index()
     {
         $questions = Question::with('quiz')->latest()->paginate(8);
-        return view('questions.index', compact('questions'));
+        return view('teacher.questions.index', compact('questions'));
     }
 
     /**
@@ -67,7 +78,7 @@ class QuestionController extends Controller
      */
     public function create()
     {
-        return view('questions.upload');
+        return view('teacher.questions.upload');
     }
 
     /**
@@ -75,7 +86,7 @@ class QuestionController extends Controller
      */
     public function createOpen()
     {
-        return view('questions.upload-open');
+        return view('teacher.questions.upload-open');
     }
 
     /**
@@ -244,7 +255,7 @@ class QuestionController extends Controller
                 if (!empty($errors)) {
                     $message .= " However, there were some errors with " . count($errors) . " rows.";
                 }
-                return redirect()->route('questions.index')->with('success', $message);
+                return redirect()->route('teacher.questions.index')->with('success', $message);
             } else {
                 $errorMessage = "No questions were imported. ";
                 if (!empty($errors)) {
@@ -366,7 +377,7 @@ class QuestionController extends Controller
                 if (!empty($errors)) {
                     $message .= " However, there were some errors with " . count($errors) . " rows.";
                 }
-                return redirect()->route('questions.index')->with('success', $message);
+                return redirect()->route('teacher.questions.index')->with('success', $message);
             } else {
                 $errorMessage = "No questions were imported. ";
                 if (!empty($errors)) {
@@ -413,6 +424,11 @@ class QuestionController extends Controller
         
         // Get saved answers from session
         $answers = session('quiz_answers_' . $quizId, []);
+        
+        // Set quiz start time if not already set
+        if (!session()->has('quiz_start_time_' . $quizId)) {
+            session(['quiz_start_time_' . $quizId => now()]);
+        }
         
         return view('quiz-single', compact('quiz', 'question', 'currentQuestion', 'totalQuestions', 'answers'));
     }

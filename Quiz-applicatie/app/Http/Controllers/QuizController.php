@@ -24,7 +24,7 @@ class QuizController extends Controller
         $user = Auth::user();
         
         if ($user->isTeacher()) {
-            $quizzes = Quiz::where('created_by', $user->id)->with('questions')->get();
+            $quizzes = Quiz::where('created_by', $user->id)->with('questions', 'attempts')->paginate(10);
             return view('teacher.quizzes.index', compact('quizzes'));
         } else {
             $quizzes = Quiz::where('is_active', true)->with('questions')->get();
@@ -38,7 +38,8 @@ class QuizController extends Controller
     public function create()
     {
         $this->authorize('create', Quiz::class);
-        return view('teacher.quizzes.create');
+        $questions = Question::all();
+        return view('teacher.quizzes.create', compact('questions'));
     }
 
     /**
@@ -53,6 +54,8 @@ class QuizController extends Controller
             'description' => 'nullable|string',
             'time_limit' => 'nullable|integer|min:1',
             'is_active' => 'boolean',
+            'questions' => 'required|array|min:1',
+            'questions.*' => 'exists:questions,id',
         ]);
 
         $quiz = Quiz::create([
@@ -63,7 +66,10 @@ class QuizController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        return redirect()->route('quizzes.show', $quiz)->with('success', 'Quiz created successfully!');
+        // Attach selected questions to the quiz
+        $quiz->questions()->attach($request->questions);
+
+        return redirect()->route('teacher.quizzes.show', $quiz)->with('success', 'Quiz created successfully!');
     }
 
     /**
@@ -86,7 +92,8 @@ class QuizController extends Controller
     public function edit(Quiz $quiz)
     {
         $this->authorize('update', $quiz);
-        return view('teacher.quizzes.edit', compact('quiz'));
+        $questions = Question::all();
+        return view('teacher.quizzes.edit', compact('quiz', 'questions'));
     }
 
     /**
@@ -101,6 +108,8 @@ class QuizController extends Controller
             'description' => 'nullable|string',
             'time_limit' => 'nullable|integer|min:1',
             'is_active' => 'boolean',
+            'questions' => 'required|array|min:1',
+            'questions.*' => 'exists:questions,id',
         ]);
 
         $quiz->update([
@@ -110,7 +119,10 @@ class QuizController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        return redirect()->route('quizzes.show', $quiz)->with('success', 'Quiz updated successfully!');
+        // Sync selected questions with the quiz
+        $quiz->questions()->sync($request->questions);
+
+        return redirect()->route('teacher.quizzes.show', $quiz)->with('success', 'Quiz updated successfully!');
     }
 
     /**
@@ -120,7 +132,7 @@ class QuizController extends Controller
     {
         $this->authorize('delete', $quiz);
         $quiz->delete();
-        return redirect()->route('quizzes.index')->with('success', 'Quiz deleted successfully!');
+        return redirect()->route('teacher.quizzes.index')->with('success', 'Quiz deleted successfully!');
     }
 
     /**
@@ -155,7 +167,7 @@ class QuizController extends Controller
                 $this->processCsvFile($content, $quiz);
             }
 
-            return redirect()->route('quizzes.show', $quiz)->with('success', 'Questions uploaded successfully!');
+            return redirect()->route('teacher.quizzes.show', $quiz)->with('success', 'Questions uploaded successfully!');
         } catch (\Exception $e) {
             return back()->with('error', 'Error processing file: ' . $e->getMessage());
         }

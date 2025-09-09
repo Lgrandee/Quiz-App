@@ -5,7 +5,7 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Questions Database</h2>
-    <a href="{{ route('questions.create') }}" class="btn btn-primary">
+    <a href="{{ route('teacher.questions.create') }}" class="btn btn-primary">
         <i class="fas fa-plus"></i> Upload New CSV
     </a>
 </div>
@@ -127,7 +127,7 @@
         </div>
         <h4 class="text-muted">No Questions Found</h4>
         <p class="text-muted">Upload a CSV file to get started with your questions database.</p>
-        <a href="{{ route('questions.create') }}" class="btn btn-primary">
+        <a href="{{ route('teacher.questions.create') }}" class="btn btn-primary">
             <i class="fas fa-upload"></i> Upload Your First CSV
         </a>
     </div>

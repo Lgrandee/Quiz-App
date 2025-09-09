@@ -29,6 +29,20 @@
                         </div>
                     </div>
                     
+                    <!-- Quiz Duration Display -->
+                    @if(isset($quizDuration))
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-clock me-2"></i>
+                                <strong>Quiz Duur:</strong> {{ $quizDuration }}
+                                @if(isset($timeLimit) && $timeLimit)
+                                    <span class="text-muted">(Tijdslimiet: {{ $timeLimit }} minuten)</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="mt-3">
                         @if($percentage >= 80)
                             <span class="badge bg-success fs-6">Uitstekend! 🎉</span>
@@ -137,11 +151,11 @@
 
             <!-- Actions -->
             <div class="text-center mt-4 mb-4">
-                <a href="{{ route('quiz.show', $quiz->id) }}" class="btn btn-primary me-2">
+                <a href="{{ route('student.quiz.show', $quiz->id) }}" class="btn btn-primary me-2">
                     <i class="fas fa-redo"></i> Quiz Opnieuw Maken
                 </a>
-                <a href="{{ route('questions.index') }}" class="btn btn-secondary">
-                    <i class="fas fa-list"></i> Alle Vragen Bekijken
+                <a href="{{ route('student.dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-home"></i> Terug naar Dashboard
                 </a>
             </div>
         </div>

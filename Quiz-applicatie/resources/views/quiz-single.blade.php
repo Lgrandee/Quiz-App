@@ -192,7 +192,7 @@ function saveAnswer() {
     const form = document.getElementById('questionForm');
     const formData = new FormData(form);
     
-    fetch('{{ route("quiz.save-answer", $quiz->id) }}', {
+    fetch('{{ route("student.quiz.save-answer") }}', {
         method: 'POST',
         body: formData,
         headers: {
@@ -396,7 +396,7 @@ function finishQuiz() {
         timestampInput.value = new Date().toISOString();
         document.getElementById('questionForm').appendChild(timestampInput);
         
-        document.getElementById('questionForm').action = '{{ route("quiz.submit") }}';
+        document.getElementById('questionForm').action = '{{ route("student.quiz.submit") }}';
         document.getElementById('questionForm').submit();
     }
 }
