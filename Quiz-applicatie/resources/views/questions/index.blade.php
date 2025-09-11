@@ -16,33 +16,35 @@
             <div class="col-md-6 mb-4">
                 <div class="card question-card h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span class="badge bg-secondary">ID: {{ $question->question_id }}</span>
+                        <span class="badge bg-secondary">ID: {{ $question->id }}</span>
                         <small class="text-muted">{{ $question->created_at->format('M d, Y') }}</small>
                     </div>
                     <div class="card-body">
-                        <h6 class="card-title">{{ $question->question }}</h6>
-                        
+                        <h6 class="card-title">{{ $question->question_text }}</h6>
+
+                        @if($question->type === 'multiple_choice' && $question->options)
                         <div class="mt-3">
                             <div class="mb-2">
                                 <span class="badge bg-light text-dark me-2">A</span>
                                 <span class="{{ $question->correct_answer == 'a' ? 'correct-answer px-2 py-1 rounded' : '' }}">
-                                    {{ $question->answer_a }}
+                                    {{ $question->options['a'] ?? '' }}
                                 </span>
                             </div>
                             <div class="mb-2">
                                 <span class="badge bg-light text-dark me-2">B</span>
                                 <span class="{{ $question->correct_answer == 'b' ? 'correct-answer px-2 py-1 rounded' : '' }}">
-                                    {{ $question->answer_b }}
+                                    {{ $question->options['b'] ?? '' }}
                                 </span>
                             </div>
                             <div class="mb-2">
                                 <span class="badge bg-light text-dark me-2">C</span>
                                 <span class="{{ $question->correct_answer == 'c' ? 'correct-answer px-2 py-1 rounded' : '' }}">
-                                    {{ $question->answer_c }}
+                                    {{ $question->options['c'] ?? '' }}
                                 </span>
                             </div>
                         </div>
-                        
+                        @endif
+
                         <div class="mt-3 pt-2 border-top">
                             <small class="text-success">
                                 <strong>Correct Answer: {{ strtoupper($question->correct_answer) }}</strong>

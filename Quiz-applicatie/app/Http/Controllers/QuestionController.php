@@ -3,41 +3,224 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Question;
-use Illuminate\Support\Facades\DB;
+use App\Models\Quiz;
 
 class QuestionController extends Controller
 {
-    /**
-     * Show all questions in a quiz form
-     */
+    public function index()
+    {
+        $questions = Question::paginate(12); // 12 questions per page
+        return view('questions.index', compact('questions'));
+    }
+
+    public function create()
+    {
+        $quizzes = Quiz::all();
+        return view('teacher.questions.upload', compact('quizzes'));
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048', // 2MB max
+        ]);
+
+        $file = $request->file('csv_file');
+        $path = $file->getRealPath();
+
+        // Read CSV with semicolon delimiter
+        $csvData = [];
+        if (($handle = fopen($path, "r")) !== FALSE) {
+            while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
+                $csvData[] = $data;
+            }
+            fclose($handle);
+        }
+
+        if (empty($csvData)) {
+            return redirect()->back()->with('error', 'CSV bestand is leeg of kon niet worden gelezen.');
+        }
+
+        $header = array_shift($csvData); // Remove header row
+
+        // Validate CSV format
+        if (count($header) < 4) {
+            return redirect()->back()->with('error', 'CSV bestand heeft niet het juiste aantal kolommen. Verwacht minimaal 4 kolommen.');
+        }
+
+        $questionsCreated = 0;
+        $errors = [];
+
+        foreach ($csvData as $rowIndex => $row) {
+            try {
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+
+                // Parse CSV row based on type
+                $questionData = $this->parseCsvRow($row, $rowIndex + 2); // +2 because we removed header and array is 0-indexed
+
+                if ($questionData) {
+                    Question::create($questionData);
+                    $questionsCreated++;
+                }
+            } catch (\Exception $e) {
+                $errors[] = "Rij " . ($rowIndex + 2) . ": " . $e->getMessage();
+            }
+        }
+
+        $message = $questionsCreated . " vragen succesvol geüpload.";
+        if (!empty($errors)) {
+            $message .= " Fouten: " . implode(", ", $errors);
+        }
+
+        return redirect()->route('teacher.questions.index')->with('success', $message);
+    }
 
     /**
-     * Handle quiz submission and show results
+     * Parse a CSV row and return question data array
      */
+    private function parseCsvRow($row, $rowNumber)
+    {
+        // Expected format for multiple choice: vraag_id;type;vraag;antwoord_a;antwoord_b;antwoord_c;juiste_antwoord
+        // Expected format for open questions: vraag_id;type;vraag;juiste_antwoord
+
+        if (count($row) < 4) {
+            throw new \Exception("Niet genoeg kolommen");
+        }
+
+        $vraagId = trim($row[0]);
+        $type = trim($row[1]);
+        $vraag = trim($row[2]);
+
+        if (empty($vraag)) {
+            throw new \Exception("Vraag tekst is verplicht");
+        }
+
+        $questionData = [
+            'question_text' => $vraag,
+            'type' => $type,
+            'points' => 1,
+            'quiz_id' => null, // Will be set when questions are assigned to quizzes
+        ];
+
+        if ($type === 'multiple_choice') {
+            if (count($row) < 7) {
+                throw new \Exception("Multiple choice vragen hebben minimaal 7 kolommen nodig");
+            }
+
+            $antwoordA = trim($row[3]);
+            $antwoordB = trim($row[4]);
+            $antwoordC = trim($row[5]);
+            $juisteAntwoord = strtolower(trim($row[6] ?? ''));
+
+            if (empty($antwoordA) || empty($antwoordB) || empty($antwoordC)) {
+                throw new \Exception("Alle antwoord opties (A, B, C) zijn verplicht voor multiple choice");
+            }
+
+            if (!in_array($juisteAntwoord, ['a', 'b', 'c'])) {
+                throw new \Exception("Juiste antwoord moet 'a', 'b', of 'c' zijn");
+            }
+
+            $questionData['options'] = [
+                'a' => $antwoordA,
+                'b' => $antwoordB,
+                'c' => $antwoordC,
+            ];
+            $questionData['correct_answer'] = $juisteAntwoord;
+
+        } elseif ($type === 'open_question') {
+            $juisteAntwoord = trim($row[3]);
+
+            if (empty($juisteAntwoord)) {
+                throw new \Exception("Juiste antwoord is verplicht voor open vragen");
+            }
+
+            $questionData['correct_answer'] = $juisteAntwoord;
+            $questionData['options'] = null;
+
+        } else {
+            throw new \Exception("Type moet 'multiple_choice' of 'open_question' zijn");
+        }
+
+        return $questionData;
+    }
+
+    public function show(Question $question)
+    {
+        return view('questions.show', compact('question'));
+    }
+
+    public function edit(Question $question)
+    {
+        $quizzes = Quiz::all();
+        return view('questions.edit', compact('question', 'quizzes'));
+    }
+
+    public function update(Request $request, Question $question)
+    {
+        $request->validate([
+            'quiz_id' => 'required|exists:quizzes,id',
+            'question_text' => 'required|string',
+            'type' => 'required|in:multiple_choice,open_question',
+            'correct_answer' => 'required|string',
+            'option_a' => 'required_if:type,multiple_choice',
+            'option_b' => 'required_if:type,multiple_choice',
+            'option_c' => 'required_if:type,multiple_choice',
+        ]);
+
+        $options = null;
+        if ($request->type === 'multiple_choice') {
+            $options = [
+                'a' => $request->option_a,
+                'b' => $request->option_b,
+                'c' => $request->option_c,
+            ];
+        }
+
+        $question->update([
+            'quiz_id' => $request->quiz_id,
+            'question_text' => $request->question_text,
+            'type' => $request->type,
+            'options' => $options,
+            'correct_answer' => $request->correct_answer,
+        ]);
+
+        return redirect()->route('questions.index')->with('success', 'Question updated successfully!');
+    }
+
+    public function destroy(Question $question)
+    {
+        $question->delete();
+        return redirect()->route('questions.index')->with('success', 'Question deleted successfully!');
+    }
+
+    public function showQuiz($quizId)
+    {
+        $quiz = Quiz::with('questions')->findOrFail($quizId);
+        return view('quiz', compact('quiz'));
+    }
+
     public function submitQuiz(Request $request)
     {
         $quizId = $request->input('quiz_id');
-        $quiz = \App\Models\Quiz::with('questions')->findOrFail($quizId);
-        
-        // Get answers from session
-        $sessionAnswers = session('quiz_answers_' . $quizId, []);
-        
+        $quiz = Quiz::with('questions')->findOrFail($quizId);
+
         $score = 0;
         $totalPoints = 0;
         $results = [];
-        
+
         foreach ($quiz->questions as $question) {
-            $userAnswer = $sessionAnswers[$question->id] ?? null;
+            $userAnswer = $request->input('answer_' . $question->id);
             $totalPoints += $question->points;
-            
+
             $correct = $question->isCorrectAnswer($userAnswer);
             if ($correct) {
                 $score += $question->points;
             }
-            
+
             $results[] = [
                 'question' => $question,
                 'user_answer' => $userAnswer,
@@ -45,409 +228,9 @@ class QuestionController extends Controller
                 'is_correct' => $correct
             ];
         }
-        
+
         $percentage = $totalPoints > 0 ? round(($score / $totalPoints) * 100, 1) : 0;
-        
-        // Clear session answers
-        // Calculate quiz duration
-        $startTime = session('quiz_start_time_' . $quizId);
-        $quizDuration = null;
-        if ($startTime) {
-            $duration = now()->diffInSeconds($startTime);
-            $minutes = floor($duration / 60);
-            $seconds = $duration % 60;
-            $quizDuration = $minutes > 0 ? "{$minutes}m {$seconds}s" : "{$seconds}s";
-        }
-        
-        session()->forget('quiz_answers_' . $quizId);
-        session()->forget('quiz_start_time_' . $quizId);
-        
-        return view('quiz_result', compact('quiz', 'score', 'totalPoints', 'percentage', 'results', 'quizDuration'));
-    }
-    /**
-     * Show the form for uploading CSV
-     */
-    public function index()
-    {
-        $questions = Question::with('quiz')->latest()->paginate(8);
-        return view('teacher.questions.index', compact('questions'));
-    }
 
-    /**
-     * Show the form for uploading questions via CSV.
-     */
-    public function create()
-    {
-        return view('teacher.questions.upload');
-    }
-
-    /**
-     * Show the form for uploading open questions via CSV.
-     */
-    public function createOpen()
-    {
-        return view('teacher.questions.upload-open');
-    }
-
-    /**
-     * Handle the CSV upload and processing (Mixed format with type column)
-     */
-    public function store(Request $request)
-    {
-        // Check if this is actually an open questions upload
-        $file = $request->file('csv_file');
-        if ($file) {
-            $csvContent = file_get_contents($file->path());
-            $lines = explode("\n", $csvContent);
-            $headerLine = trim($lines[0] ?? '');
-            
-            // If header doesn't contain 'type' column, treat as open questions but use default title
-            if (strpos(strtolower($headerLine), 'type') === false) {
-                // Add default quiz title for open questions upload via regular route
-                $request->merge([
-                    'quiz_title' => 'Open Vragen Quiz - ' . date('Y-m-d H:i'),
-                    'quiz_description' => 'Automatisch geïmporteerde open vragen'
-                ]);
-                return $this->storeOpen($request);
-            }
-        }
-        
-        // Validate the uploaded file
-        $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
-        ]);
-
-        try {
-            // Get the uploaded file
-            $file = $request->file('csv_file');
-            
-            // Read the CSV file content as string
-            $csvContent = file_get_contents($file->path());
-            
-            // Split into lines
-            $lines = explode("\n", $csvContent);
-            
-            // Remove empty lines
-            $lines = array_filter($lines, function($line) {
-                return trim($line) !== '';
-            });
-            
-            // Remove the header row
-            array_shift($lines);
-            
-            // Find or create a default quiz for imported questions
-            $defaultQuiz = \App\Models\Quiz::firstOrCreate(
-                ['title' => 'Geïmporteerde Vragen'],
-                [
-                    'title' => 'Geïmporteerde Vragen',
-                    'description' => 'Vragen geüpload via CSV import',
-                    'is_active' => true,
-                    'time_limit' => 30,
-                    'created_by' => auth()->id() ?? 1,
-                ]
-            );
-
-            // Start database transaction
-            DB::beginTransaction();
-            
-            $importedCount = 0;
-            $errors = [];
-            
-            foreach ($lines as $rowIndex => $line) {
-                // Skip empty lines
-                if (empty(trim($line))) {
-                    continue;
-                }
-                
-                // Split by semicolon
-                $rowData = explode(';', trim($line));
-                
-                // Check if we have enough columns (minimum 4 for open questions, 7 for multiple choice)
-                if (count($rowData) < 4) {
-                    $errors[] = "Row " . ($rowIndex + 2) . ": Expected at least 4 columns, got " . count($rowData) . " columns. Data: " . implode(' | ', $rowData);
-                    continue;
-                }
-                
-                try {
-                    // Clean up the data - remove any extra quotes or spaces
-                    $questionId = trim($rowData[0], " \t\n\r\0\x0B\"");
-                    $questionType = trim(strtolower($rowData[1]), " \t\n\r\0\x0B\"");
-                    $question = trim($rowData[2], " \t\n\r\0\x0B\"");
-                    
-                    // Validate question type
-                    if (!in_array($questionType, ['multiple_choice', 'open_question'])) {
-                        $errors[] = "Row " . ($rowIndex + 2) . ": Invalid question type '{$questionType}'. Must be 'multiple_choice' or 'open_question'";
-                        continue;
-                    }
-                    
-                    if ($questionType === 'multiple_choice') {
-                        // Multiple choice questions need 7 columns
-                        if (count($rowData) < 7) {
-                            $errors[] = "Row " . ($rowIndex + 2) . ": Multiple choice questions need 7 columns, got " . count($rowData);
-                            continue;
-                        }
-                        
-                        $answerA = trim($rowData[3], " \t\n\r\0\x0B\"");
-                        $answerB = trim($rowData[4], " \t\n\r\0\x0B\"");
-                        $answerC = trim($rowData[5], " \t\n\r\0\x0B\"");
-                        $correctAnswer = trim(strtolower($rowData[6]), " \t\n\r\0\x0B\"");
-                        
-                        // Validate correct answer for multiple choice
-                        if (!in_array($correctAnswer, ['a', 'b', 'c'])) {
-                            $errors[] = "Row " . ($rowIndex + 2) . ": Invalid correct answer '{$correctAnswer}'. Must be 'a', 'b', or 'c'";
-                            continue;
-                        }
-                    } else {
-                        // Open questions need 4 columns
-                        if (count($rowData) < 4) {
-                            $errors[] = "Row " . ($rowIndex + 2) . ": Open questions need 4 columns, got " . count($rowData);
-                            continue;
-                        }
-                        
-                        $correctAnswer = trim($rowData[3], " \t\n\r\0\x0B\"");
-                        
-                        // Validate that open question has an answer
-                        if (empty($correctAnswer)) {
-                            $errors[] = "Row " . ($rowIndex + 2) . ": Open question must have a correct answer";
-                            continue;
-                        }
-                    }
-                    
-                    // Create question with proper model structure
-                    if ($questionType === 'multiple_choice') {
-                        Question::create([
-                            'quiz_id' => $defaultQuiz->id,
-                            'question_text' => $question,
-                            'type' => 'multiple_choice',
-                            'options' => [
-                                'a' => $answerA,
-                                'b' => $answerB,
-                                'c' => $answerC,
-                            ],
-                            'correct_answer' => $correctAnswer,
-                            'points' => 1,
-                            'order' => $importedCount + 1,
-                        ]);
-                    } else {
-                        Question::create([
-                            'quiz_id' => $defaultQuiz->id,
-                            'question_text' => $question,
-                            'type' => 'open_question',
-                            'options' => null,
-                            'correct_answer' => $correctAnswer,
-                            'points' => 1,
-                            'order' => $importedCount + 1,
-                        ]);
-                    }
-                    
-                    $importedCount++;
-                    
-                } catch (\Exception $e) {
-                    $errors[] = "Row " . ($rowIndex + 2) . ": " . $e->getMessage();
-                }
-            }
-            
-            DB::commit();
-            
-            // Prepare success message
-            if ($importedCount > 0) {
-                $message = "Successfully imported {$importedCount} questions! 🎉";
-                if (!empty($errors)) {
-                    $message .= " However, there were some errors with " . count($errors) . " rows.";
-                }
-                return redirect()->route('teacher.questions.index')->with('success', $message);
-            } else {
-                $errorMessage = "No questions were imported. ";
-                if (!empty($errors)) {
-                    $errorMessage .= "Errors found: " . implode(' | ', array_slice($errors, 0, 3));
-                    if (count($errors) > 3) {
-                        $errorMessage .= " and " . (count($errors) - 3) . " more errors.";
-                    }
-                }
-                return redirect()->back()->with('error', $errorMessage);
-            }
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Error processing CSV: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Handle the Open Questions CSV upload and processing
-     */
-    public function storeOpen(Request $request)
-    {
-        // Validate the uploaded file and quiz details
-        $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
-            'quiz_title' => 'required|string|max:255',
-            'quiz_description' => 'nullable|string|max:1000',
-        ]);
-
-        try {
-            // Get the uploaded file
-            $file = $request->file('csv_file');
-            
-            // Read the CSV file content as string
-            $csvContent = file_get_contents($file->path());
-            
-            // Split into lines
-            $lines = explode("\n", $csvContent);
-            
-            // Remove empty lines
-            $lines = array_filter($lines, function($line) {
-                return trim($line) !== '';
-            });
-            
-            // Remove the header row
-            array_shift($lines);
-            
-            // Start database transaction
-            DB::beginTransaction();
-            
-            // Create a new quiz specifically for open questions
-            $quiz = \App\Models\Quiz::create([
-                'title' => $request->quiz_title,
-                'description' => $request->quiz_description ?: 'Open vragen quiz geüpload via CSV',
-                'is_active' => true,
-                'time_limit' => 30,
-                'created_by' => auth()->id(),
-            ]);
-            
-            $importedCount = 0;
-            $errors = [];
-            
-            foreach ($lines as $rowIndex => $line) {
-                // Skip empty lines
-                if (empty(trim($line))) {
-                    continue;
-                }
-                
-                // Split by semicolon
-                $rowData = explode(';', trim($line));
-                
-                // Check if we have enough columns (minimum 3: vraag_id, vraag, juiste_antwoord)
-                if (count($rowData) < 3) {
-                    $errors[] = "Row " . ($rowIndex + 2) . ": Expected at least 3 columns, got " . count($rowData) . " columns";
-                    continue;
-                }
-                
-                try {
-                    // Clean up the data
-                    $questionId = trim($rowData[0], " \t\n\r\0\x0B\"");
-                    $question = trim($rowData[1], " \t\n\r\0\x0B\"");
-                    $correctAnswer = trim($rowData[2], " \t\n\r\0\x0B\"");
-                    $points = isset($rowData[3]) ? (int)trim($rowData[3], " \t\n\r\0\x0B\"") : 1;
-                    
-                    // Validate required fields
-                    if (empty($question) || empty($correctAnswer)) {
-                        $errors[] = "Row " . ($rowIndex + 2) . ": Question and correct answer are required";
-                        continue;
-                    }
-                    
-                    // Ensure points is at least 1
-                    if ($points < 1) {
-                        $points = 1;
-                    }
-                    
-                    // Create open question
-                    Question::create([
-                        'quiz_id' => $quiz->id,
-                        'question_text' => $question,
-                        'type' => 'open_question',
-                        'options' => null,
-                        'correct_answer' => $correctAnswer,
-                        'points' => $points,
-                        'order' => $importedCount + 1,
-                    ]);
-                    
-                    $importedCount++;
-                    
-                } catch (\Exception $e) {
-                    $errors[] = "Row " . ($rowIndex + 2) . ": " . $e->getMessage();
-                }
-            }
-            
-            DB::commit();
-            
-            // Prepare success message
-            if ($importedCount > 0) {
-                $message = "Successfully imported {$importedCount} open questions into quiz '{$quiz->title}'! 🎉";
-                if (!empty($errors)) {
-                    $message .= " However, there were some errors with " . count($errors) . " rows.";
-                }
-                return redirect()->route('teacher.questions.index')->with('success', $message);
-            } else {
-                $errorMessage = "No questions were imported. ";
-                if (!empty($errors)) {
-                    $errorMessage .= "Errors found: " . implode(' | ', array_slice($errors, 0, 3));
-                    if (count($errors) > 3) {
-                        $errorMessage .= " and " . (count($errors) - 3) . " more errors.";
-                    }
-                }
-                return redirect()->back()->with('error', $errorMessage);
-            }
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Error processing CSV: ' . $e->getMessage());
-        }
-    }
-
-    public function showQuiz($quizId = null)
-    {
-        if ($quizId) {
-            $quiz = \App\Models\Quiz::with('questions')->findOrFail($quizId);
-        } else {
-            // Find the default imported questions quiz
-            $quiz = \App\Models\Quiz::with('questions')
-                ->where('title', 'Geïmporteerde Vragen')
-                ->firstOrFail();
-        }
-        
-        // Redirect to single question view
-        return redirect()->route('quiz.question', ['quiz' => $quiz->id, 'questionNumber' => 1]);
-    }
-
-    public function showQuestion($quizId, $questionNumber = 1)
-    {
-        $quiz = \App\Models\Quiz::with('questions')->findOrFail($quizId);
-        $totalQuestions = $quiz->questions->count();
-        
-        if ($questionNumber < 1 || $questionNumber > $totalQuestions) {
-            return redirect()->route('quiz.question', ['quiz' => $quizId, 'questionNumber' => 1]);
-        }
-        
-        $question = $quiz->questions[$questionNumber - 1];
-        $currentQuestion = $questionNumber;
-        
-        // Get saved answers from session
-        $answers = session('quiz_answers_' . $quizId, []);
-        
-        // Set quiz start time if not already set
-        if (!session()->has('quiz_start_time_' . $quizId)) {
-            session(['quiz_start_time_' . $quizId => now()]);
-        }
-        
-        return view('quiz-single', compact('quiz', 'question', 'currentQuestion', 'totalQuestions', 'answers'));
-    }
-
-    public function saveAnswer(Request $request)
-    {
-        $quizId = $request->input('quiz_id');
-        $questionNumber = $request->input('question_number');
-        $answer = $request->input('answer');
-        $currentAnswers = json_decode($request->input('current_answers', '[]'), true);
-        
-        $quiz = \App\Models\Quiz::with('questions')->findOrFail($quizId);
-        $question = $quiz->questions[$questionNumber - 1];
-        
-        // Save answer in session
-        $answers = session('quiz_answers_' . $quizId, []);
-        $answers[$question->id] = $answer;
-        session(['quiz_answers_' . $quizId => $answers]);
-        
-        return response()->json(['success' => true]);
+        return view('quiz_result', compact('quiz', 'score', 'totalPoints', 'percentage', 'results'));
     }
 }

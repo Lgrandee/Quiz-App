@@ -9,7 +9,7 @@
             <!-- Score Overview -->
             <div class="card mb-4">
                 <div class="card-header bg-{{ $percentage >= 80 ? 'success' : ($percentage >= 60 ? 'warning' : 'danger') }} text-white">
-                    <h4><i class="fas fa-trophy"></i> Quiz Voltooid: {{ $quiz->title }}</h4>
+                    <h4>Quiz Voltooid: {{ $quiz->title }}</h4>
                 </div>
                 <div class="card-body text-center">
                     <div class="row">
@@ -34,7 +34,6 @@
                     <div class="row mt-3">
                         <div class="col-md-12">
                             <div class="alert alert-info">
-                                <i class="fas fa-clock me-2"></i>
                                 <strong>Quiz Duur:</strong> {{ $quizDuration }}
                                 @if(isset($timeLimit) && $timeLimit)
                                     <span class="text-muted">(Tijdslimiet: {{ $timeLimit }} minuten)</span>
@@ -45,11 +44,11 @@
                     
                     <div class="mt-3">
                         @if($percentage >= 80)
-                            <span class="badge bg-success fs-6">Uitstekend! 🎉</span>
+                            <span class="badge bg-success fs-6">Uitstekend! </span>
                         @elseif($percentage >= 60)
-                            <span class="badge bg-warning fs-6">Goed gedaan! 👍</span>
+                            <span class="badge bg-warning fs-6">Goed gedaan! </span>
                         @else
-                            <span class="badge bg-danger fs-6">Meer oefening nodig 📚</span>
+                            <span class="badge bg-danger fs-6">Meer oefening nodig </span>
                         @endif
                     </div>
                 </div>
@@ -58,7 +57,7 @@
             <!-- Detailed Results -->
             <div class="card">
                 <div class="card-header">
-                    <h5><i class="fas fa-list-alt"></i> Gedetailleerde Resultaten</h5>
+                    <h5>Gedetailleerde Resultaten</h5>
                 </div>
                 <div class="card-body">
                     @foreach($results as $index => $result)

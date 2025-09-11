@@ -45,34 +45,18 @@ class User extends Authenticatable
     ];
 
     /**
-     * Check if user is a teacher
+     * Check if the user is a teacher.
      */
-    public function isTeacher(): bool
+    public function isTeacher()
     {
         return $this->role === 'teacher';
     }
 
     /**
-     * Check if user is a student
+     * Check if the user is a student.
      */
-    public function isStudent(): bool
+    public function isStudent()
     {
         return $this->role === 'student';
-    }
-
-    /**
-     * Quizzes created by this user (teachers only)
-     */
-    public function createdQuizzes()
-    {
-        return $this->hasMany(Quiz::class, 'created_by');
-    }
-
-    /**
-     * Quiz attempts by this user (students)
-     */
-    public function quizAttempts()
-    {
-        return $this->hasMany(QuizAttempt::class);
     }
 }

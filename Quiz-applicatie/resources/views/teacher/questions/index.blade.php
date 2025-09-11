@@ -57,10 +57,11 @@
                                         @if($question->type === 'multiple_choice')
                                             <div class="mt-1">
                                                 <small class="text-muted">
-                                                    A: {{ Str::limit($question->answer_a, 20) }} | 
-                                                    B: {{ Str::limit($question->answer_b, 20) }} | 
-                                                    C: {{ Str::limit($question->answer_c, 20) }} | 
-                                                    D: {{ Str::limit($question->answer_d, 20) }}
+                                                    @if($question->options)
+                                                        A: {{ Str::limit($question->options['a'] ?? '', 20) }} |
+                                                        B: {{ Str::limit($question->options['b'] ?? '', 20) }} |
+                                                        C: {{ Str::limit($question->options['c'] ?? '', 20) }}
+                                                    @endif
                                                 </small>
                                             </div>
                                             <div class="mt-1">

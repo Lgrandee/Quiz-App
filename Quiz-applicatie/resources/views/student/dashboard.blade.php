@@ -21,9 +21,9 @@
                     <h5><i class="fas fa-list-alt"></i> Beschikbare Quizzes</h5>
                 </div>
                 <div class="card-body">
-                    @if($quizzes->count() > 0)
+                    @if($availableQuizzes->count() > 0)
                         <div class="row">
-                            @foreach($quizzes as $quiz)
+                            @foreach($availableQuizzes as $quiz)
                                 @php
                                     $sessionKey = 'quiz_answers_' . $quiz->id;
                                     $savedAnswers = session($sessionKey, []);
@@ -148,7 +148,7 @@
                             <strong>
                                 @php
                                     $inProgressCount = 0;
-                                    foreach($quizzes as $quiz) {
+                                    foreach($availableQuizzes as $quiz) {
                                         $savedAnswers = session('quiz_answers_' . $quiz->id, []);
                                         $totalQuestions = $quiz->questions->count();
                                         if(count($savedAnswers) > 0 && count($savedAnswers) < $totalQuestions) {
@@ -163,7 +163,7 @@
                     <div class="stat-row">
                         <div class="d-flex justify-content-between">
                             <span><i class="fas fa-list text-primary"></i> Totaal Beschikbaar</span>
-                            <strong>{{ $quizzes->count() }}</strong>
+                            <strong>{{ $availableQuizzes->count() }}</strong>
                         </div>
                     </div>
                 </div>

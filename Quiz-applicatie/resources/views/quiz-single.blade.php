@@ -174,6 +174,9 @@
 </div>
 
 <script>
+// Base URL for quiz navigation
+const quizBaseUrl = '{{ url("student/quiz") }}/{{ $quiz->id }}/question/';
+
 function selectOption(key) {
     // Remove selection from all options
     document.querySelectorAll('.option-card').forEach(card => {
@@ -338,18 +341,18 @@ function levenshteinDistance(str1, str2) {
 function nextQuestion() {
     saveAnswer();
     const nextQuestionNumber = {{ $currentQuestion }} + 1;
-    window.location.href = `{{ url('quiz') }}/{{ $quiz->id }}/question/${nextQuestionNumber}`;
+    window.location.href = quizBaseUrl + nextQuestionNumber;
 }
 
 function previousQuestion() {
     saveAnswer();
     const prevQuestionNumber = {{ $currentQuestion }} - 1;
-    window.location.href = `{{ url('quiz') }}/{{ $quiz->id }}/question/${prevQuestionNumber}`;
+    window.location.href = quizBaseUrl + prevQuestionNumber;
 }
 
 function goToQuestion(questionNumber) {
     saveAnswer();
-    window.location.href = `{{ url('quiz') }}/{{ $quiz->id }}/question/${questionNumber}`;
+    window.location.href = quizBaseUrl + questionNumber;
 }
 
 function pauseQuiz() {

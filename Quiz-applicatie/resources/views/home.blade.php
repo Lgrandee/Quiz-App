@@ -9,16 +9,16 @@
     @auth
         @if(auth()->user()->isTeacher())
             <a href="{{ route('teacher.questions.create') }}" class="btn btn-primary">
-                <i class="fas fa-upload"></i> Upload Questions
+                Upload Questions
             </a>
         @else
             <a href="{{ route('student.dashboard') }}" class="btn btn-primary">
-                <i class="fas fa-play"></i> Take Quiz
+                Take Quiz
             </a>
         @endif
     @else
         <a href="{{ route('login') }}" class="btn btn-primary">
-            <i class="fas fa-sign-in-alt"></i> Login to Start
+            Login to Start
         </a>
     @endauth
 </div>

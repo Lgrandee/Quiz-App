@@ -9,7 +9,7 @@
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h4><i class="fas fa-question-circle"></i> {{ $quiz->title }}</h4>
+                        <h4>{{ $quiz->title }}</h4>
                         <div class="quiz-info">
                             <span class="badge bg-light text-dark">{{ $quiz->questions->count() }} vragen</span>
                             @if($quiz->time_limit)
@@ -22,7 +22,7 @@
                     @endif
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('student.quiz.submit') }}" method="POST" id="quizForm">
+                    <form action="{{ route('quiz.submit') }}" method="POST" id="quizForm">
                         @csrf
                         <input type="hidden" name="quiz_id" value="{{ $quiz->id }}">
                         
@@ -64,15 +64,9 @@
                             </div>
                         @endforeach
                         
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
-                            <div class="quiz-progress">
-                                <small class="text-muted">
-                                    <i class="fas fa-tasks"></i> 
-                                    <span id="answeredCount">0</span> van {{ $quiz->questions->count() }} vragen beantwoord
-                                </small>
-                            </div>
-                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
-                                <i class="fas fa-paper-plane"></i> Quiz Indienen
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                Quiz Indienen
                             </button>
                         </div>
                     </form>
@@ -82,68 +76,5 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('quizForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const answeredCount = document.getElementById('answeredCount');
-    const totalQuestions = {{ $quiz->questions->count() }};
-    
-    // Track answered questions
-    function updateProgress() {
-        const answeredQuestions = form.querySelectorAll('input[type="radio"]:checked, textarea:not(:empty)').length;
-        answeredCount.textContent = answeredQuestions;
-        
-        if (answeredQuestions === totalQuestions) {
-            submitBtn.classList.remove('btn-secondary');
-            submitBtn.classList.add('btn-success');
-            submitBtn.disabled = false;
-        } else {
-            submitBtn.classList.remove('btn-success');
-            submitBtn.classList.add('btn-secondary');
-        }
-    }
-    
-    // Listen for changes
-    form.addEventListener('change', updateProgress);
-    form.addEventListener('input', updateProgress);
-    
-    // Initial check
-    updateProgress();
-    
-    // Confirm before submit
-    form.addEventListener('submit', function(e) {
-        const answeredQuestions = form.querySelectorAll('input[type="radio"]:checked, textarea:not(:empty)').length;
-        
-        if (answeredQuestions < totalQuestions) {
-            if (!confirm(`Je hebt nog ${totalQuestions - answeredQuestions} vragen niet beantwoord. Weet je zeker dat je wilt indienen?`)) {
-                e.preventDefault();
-            }
-        }
-    });
-});
-</script>
 
-<style>
-.question-card {
-    transition: all 0.3s ease;
-}
-
-.question-card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.form-check-input:checked + .form-check-label {
-    font-weight: bold;
-    color: #0d6efd;
-}
-
-.question-number {
-    color: #495057;
-}
-
-.badge {
-    font-size: 0.8em;
-}
-</style>
 @endsection
