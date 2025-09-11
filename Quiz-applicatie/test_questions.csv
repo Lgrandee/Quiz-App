@@ -1,5 +1,0 @@
-vraag_id;type;vraag;antwoord_a;antwoord_b;antwoord_c;juiste_antwoord
-Q001;multiple_choice;Wat is de hoofdstad van Nederland?;Amsterdam;Rotterdam;Den Haag;a
-Q002;multiple_choice;Hoeveel provincies heeft Nederland?;10;11;12;c
-Q003;open_question;Wat is de hoofdstad van Frankrijk?;;;Parijs
-Q004;multiple_choice;Wat is de grootste rivier van Nederland?;Rijn;Maas;IJssel;a
